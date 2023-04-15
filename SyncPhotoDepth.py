@@ -11,11 +11,9 @@ from PIL import ExifTags
 # Remove 1st argument from the list of command line arguments
 argumentList = sys.argv[1:]
 #Parse arguments
-#'ScubaDiving_2023-02-20T14_19_15.fit'
 fFile = argumentList[0]
 
-#Set timezone for photos cause their stupid
-#picTimezone = pytz.timezone(argumentList[1])
+#Set timezone for photos cause they're stupid
 picTimezone = argumentList[1]
 
 ##Converts Celsius to Fahrenheit
@@ -38,17 +36,15 @@ for pic in sorted(os.listdir(), key=os.path.getmtime):
         #Get the timestamp the picture was taken
         #Add a timezone because for some dumb reason that isn't stored in EXIF data >.<
         t=datetime.datetime.strptime(pil.getexif()[306] + picTimezone, '%Y:%m:%d %H:%M:%S%z')        
-        #Convert to GMT because for lord knows what reason Python completely ignores the timezone when converting to UTC >.<
-        rage = t.astimezone(pytz.timezone('GMT'))         
         #Convert to Epoch so we can stop dealing with the pain that is DateTime objects
-        pictures.append((pic, calendar.timegm(rage.timetuple())))
+        pictures.append((pic, t.timestamp()))
     except:
         continue
 #Sort the pictures by their metadata created date, just in case the OS was sorting by a different timestamp
 pictures.sort(key = lambda x: x[1])
 
 #Loop to go through .fit file and pull out the timestamp, depth, and temp of each known point of the dive, then sort
-#them by time (nearest second). Also converts mm to feet and Celsius to Fahrenheit, rounding each to nearest integer
+#them by time (nearest second). Also converts Celsius to Fahrenheit, rounding to nearest integer
 with fitdecode.FitReader(fFile) as fit_file:
     for frame in fit_file:
         if isinstance(frame, fitdecode.records.FitDataMessage):
@@ -59,8 +55,6 @@ with fitdecode.FitReader(fFile) as fit_file:
                         #Get the Date and convert it to an epoch time. DON'T use raw_value cause they are doing something funky and it isn't standard >.<    
                         ts = calendar.timegm(field.value.timetuple())
                     elif field.name == 'depth':
-                        #Get the raw depth data (in mm) and conver to feet since we are rounding to the nearest 10 seconds anyways
-                        #ft = str(mmToFeet(field.raw_value))
                         #We'll leave it as mm for now and convert after we average out the depth between the two data points
                         mm = str(field.raw_value)
                     elif field.name =='temperature':
@@ -86,8 +80,12 @@ for pic in pictures:
     if (dataPoints[k][0] - pic[1]) <= 10:
         nextDepth = int(dataPoints[k][1])
         prevDepth = int(dataPoints[k-1][1])
+        #Determine the time difference between datapoints (for readability)
+        timeRange = dataPoints[k][0] - dataPoints[k-1][0]
+        #Determine where the photo falls between datapoints to guestimate depth
+        offset = dataPoints[k][0] - pic[1]
         #Calculate the depth assuming a linear change between the two points, then convert to feet
-        depth = mmToFeet(nextDepth - ((nextDepth - prevDepth)/(dataPoints[k][0] - dataPoints[k-1][0]) * (dataPoints[k][0] - pic[1])))
+        depth = mmToFeet(nextDepth - ((nextDepth - prevDepth)/(timeRange) * (offset)))
         print("Found depth: " + str(depth))        
 
         pillow_image = PillowImage.open(pic[0])
