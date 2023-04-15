@@ -3,10 +3,7 @@ import fitdecode
 import sys
 import datetime
 import calendar
-import pytz
-from exif import Image as ExifImage
-from PIL import Image as PillowImage
-from PIL import ExifTags
+import pyexiv2
 
 # Remove 1st argument from the list of command line arguments
 argumentList = sys.argv[1:]
@@ -32,10 +29,15 @@ pictures = []
 #Iterates over everything in the current directory and creates a time sorted list of only pictures
 for pic in sorted(os.listdir(), key=os.path.getmtime):
     try:
-        pil = PillowImage.open(pic)
+        #Fetch the image metadata so we can grab the date the camera thinks the photo was taken, to ensure we can process these in order taken
+        exiv_image = pyexiv2.Image(pic)
+        data = exiv_image.read_exif()
+
         #Get the timestamp the picture was taken
         #Add a timezone because for some dumb reason that isn't stored in EXIF data >.<
-        t=datetime.datetime.strptime(pil.getexif()[306] + picTimezone, '%Y:%m:%d %H:%M:%S%z')        
+        t=datetime.datetime.strptime(data['Exif.Image.DateTime'] + picTimezone, '%Y:%m:%d %H:%M:%S%z')
+        #Close the image because the library tells us to
+        exiv_image.close()
         #Convert to Epoch so we can stop dealing with the pain that is DateTime objects
         pictures.append((pic, t.timestamp()))
     except:
@@ -84,22 +86,23 @@ for pic in pictures:
         timeRange = dataPoints[k][0] - dataPoints[k-1][0]
         #Determine where the photo falls between datapoints to guestimate depth
         offset = dataPoints[k][0] - pic[1]
-        #Calculate the depth assuming a linear change between the two points, then convert to feet
-        depth = mmToFeet(nextDepth - ((nextDepth - prevDepth)/(timeRange) * (offset)))
-        print("Found depth: " + str(depth))        
-
-        pillow_image = PillowImage.open(pic[0])
-        img_exif = pillow_image.getexif()
-
-        #WaterDepth (Technically supposed to be in meters, buuuutt.... 'MERICA!)
-        img_exif[37891] = depth
-        #Temperature also supposed to be in Celsius, but that's just silly
-        img_exif[37888] = dataPoints[k][2]
-
-        img_exif[33432] = "Don Mitchell"
+        #Calculate the depth assuming a linear change between the two points, then convert to feet. Convert to a fraction because apparently that is required to work
+        depth = str(mmToFeet(nextDepth - ((nextDepth - prevDepth)/(timeRange) * (offset)))) + "/1"
+        print("Found depth: " + str(depth))
         
+        # Create set of metadata we wish to update. This will overwrite its original value, or add it if it doesn't exist
+        addData = {'Exif.Image.Copyright': "Don Mitchell",
+                   # #WaterDepth (Technically supposed to be in meters, buuuutt.... 'MERICA!)
+                   'Exif.Photo.WaterDepth': depth, 
+                   #Temperature also supposed to be in Celsius, but that's just silly. Almost as silly as the fact that it must be saved as a fraction, as opposed to a float or something sane.
+                   'Exif.Photo.Temperature': str(dataPoints[k][2]) + "/1", 
+                   #Set the Altitude, because WaterDepth doesn't actually show up >.< Ref of 1 indicates Altitude is below sea level (sadly it is the absolute value so will display as positive number)
+                   'Exif.GPSInfo.GPSAltitudeRef': 1, 'Exif.GPSInfo.GPSAltitude': depth,
+                   #Set the "name/location" of the dive. Overloading UniqueID because ReelName isn't displayed by default... <sigh>
+                   'Exif.Photo.ImageUniqueID': "Mukilteo", 'Exif.Image.ReelName' : "Mukilteo"}
 
-
-        output_file = "test/" + pic[0]
-        pillow_image.save(output_file, exif=img_exif)   
-        
+        #Fetch the metadata object we wish to edit
+        image = pyexiv2.Image(pic[0])
+        image.modify_exif(addData)
+        #Close the image cause the library people said we get memory leaks otherwise
+        image.close
