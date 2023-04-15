@@ -11,8 +11,8 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            "args": ["ScubaDiving_2023-02-20T14_19_15.fit", "-07:00"]
-            //"args": ["ScubaDiving_2023-02-20T15_57_36.fit", "-07:00"]
+            "args": ["ScubaDiving_2023-02-20T14_19_15.fit", "-07:00", "Mukilteo, WA"]
+            //"args": ["ScubaDiving_2023-02-20T15_57_36.fit", "-07:00", "Mukilteo, WA"]
         }
     ]
 }

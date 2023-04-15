@@ -13,6 +13,9 @@ fFile = argumentList[0]
 #Set timezone for photos cause they're stupid
 picTimezone = argumentList[1]
 
+#Optional human friendly location to set for photos. Should probably make this a '-l/-loc' type option...
+picLoc = argumentList[2]
+
 ##Converts Celsius to Fahrenheit
 def cToF(temp):
     return round((temp * 9 / 5 + 32))
@@ -99,7 +102,7 @@ for pic in pictures:
                    #Set the Altitude, because WaterDepth doesn't actually show up >.< Ref of 1 indicates Altitude is below sea level (sadly it is the absolute value so will display as positive number)
                    'Exif.GPSInfo.GPSAltitudeRef': 1, 'Exif.GPSInfo.GPSAltitude': depth,
                    #Set the "name/location" of the dive. Overloading UniqueID because ReelName isn't displayed by default... <sigh>
-                   'Exif.Photo.ImageUniqueID': "Mukilteo", 'Exif.Image.ReelName' : "Mukilteo"}
+                   'Exif.Photo.ImageUniqueID': picLoc, 'Exif.Image.ReelName' : picLoc}
 
         #Fetch the metadata object we wish to edit
         image = pyexiv2.Image(pic[0])
