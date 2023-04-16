@@ -15,8 +15,9 @@ parser.add_argument("-o", "--offset", type=int, default = 0, help="Optional pict
                     "eg. If the Camera clock was 17 seconds behind the Dive Computer Clock you'd pass '-o 17', for an hour and 17 seconds early you'd pass -3617")
 parser.add_argument("-l", "--location", type=str, help="Optional human friendly location of the photos to add to the metadata, eg. 'Mukilteo, WA'")
 parser.add_argument("-c", "--coords", type=str, help="Optional GPS coordinates to add to the photo. Should be in the form \"##.### -##.###\" I honestly have no idea why this one doesn't always need the leading space when negative.")
-parser.add_argument("-F", "--FREEDOM", type=str, default="TRUE", help="Standards are for other people. Why use Meters and C° when Feet and F° exist? Setting this to true ignores the " + 
-                    "standard in favor of using feet and Fahrenheit instead. As the author is from MERICA, this is the default behaviour. Expects some form of False or 'F', everything else evaluates True")
+parser.add_argument("-F", "--FREEDOM", type=str, default="TRUE", help="Standards are for other people. Why use Meters and C° when Feet and F° exist? Not setting this to false ignores the standard " + 
+                    "in favor of using feet and Fahrenheit instead. As the author is from `MERICA, this is the default behaviour. Expects some form of False or 'F', everything else evaluates True " + 
+                    "(e.g. -F=YourPartOfTheProbem will evaluate to TRUE and proceed to write everything in Imperial)")
 parser.add_argument("-a", "--author", type=str, help="Optional string for Author/Copywrite")
 parser.add_argument("-v", "--verbose", action="store_true", help="Flood the console with Print statements")
 
