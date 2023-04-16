@@ -20,8 +20,8 @@ parser.add_argument("-F", "--FREEDOM", type=str, default="TRUE", help="Standards
                     "(e.g. -F=YourPartOfTheProbem will evaluate to TRUE and proceed to write everything in Imperial)")
 parser.add_argument("-a", "--author", type=str, help="Optional string for Author/Copywrite")
 parser.add_argument("-v", "--verbose", action="store_true", help="Flood the console with Print statements")
-
 args = parser.parse_args()
+
 #Create the dictionary for data we'll be adding to photos in advance, because half of it will be identical for all photos so there's no sense updating it in our photo loop
 addData = {}
 
@@ -82,8 +82,8 @@ else:
     picCoords = args.coords
     print("GPS Coords: None")
 
-#Optional flag to ignore the EXIF standards in favor of using Feet and Fahrenheit where Meters and Celsius normall go
-if 'FALSE'.startswith(args.FREEDOM.upper()):
+#Optional flag to ignore the EXIF standards in favor of using Feet and Fahrenheit where Meters and Celsius normally go
+if 'FALSE'.startswith(args.FREEDOM.upper()) or 'F'.startswith(args.FREEDOM.upper()) :
     ignoreStandards = False
 else:
     ignoreStandards = True
@@ -98,7 +98,7 @@ if author is not None:
 else:
     print("Author/Copyright: None")
 
-##Converts Celsius to Fahrenheit if FREEDOM is set to true
+##Converts Celsius to Fahrenheit if FREEDOM isn't false
 def cToF(temp):
     if ignoreStandards:
         return round((temp * 9 / 5 + 32))
