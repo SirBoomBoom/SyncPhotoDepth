@@ -14,25 +14,25 @@ There is only one required parameter, which is the name of the .FIT file to use 
 Otherwise there are several optional parameters that can be used to add additional data to all photos in the collection, including Author, a friendly location name (e.g. "Mom's House" or "New York, NY"), and actual GPS decimal coordinates
 
 -z --timezone TIMEZONE 
-	The timezone the photos were taken in, using the format " -08:00" to represent something like PST. NOTE: If timezone offset starts with a leading '-' it must be quoted and have a leading space, as otherwise Python insists on treating it as an optional argument
+* The timezone the photos were taken in, using the format " -08:00" to represent something like PST. NOTE: If timezone offset starts with a leading '-' it must be quoted and have a leading space, as otherwise Python insists on treating it as an optional argument
 
 -o --offset OFFSET
-	Optional picture offset, in seconds, from the FIT file. This is used to offset any clock drift between camera and dive computereg. If the Camera clock was 17 seconds behind the Dive Computer Clock you'd pass '-o 17', for an hour and 17 seconds early you'd pass -3617
+* Optional picture offset, in seconds, from the FIT file. This is used to offset any clock drift between camera and dive computereg. If the Camera clock was 17 seconds behind the Dive Computer Clock you'd pass '-o 17', for an hour and 17 seconds early you'd pass -3617
 
 -l --location LOCATION
-	Optional human friendly location of the photos to add to the metadata, eg. 'Mukilteo, WA'
+* Optional human friendly location of the photos to add to the metadata, eg. 'Mukilteo, WA'
 
 -c --coords COORDS
-	Optional GPS coordinates to add to the photo. Should be in the form "##.### -##.###" I honestly have no idea why this one doesn't always need the leading space when negative.
+* Optional GPS coordinates to add to the photo. Should be in the form "##.### -##.###" I honestly have no idea why this one doesn't always need the leading space when negative.
 
 -F --FREEDOM FREEDOM
-	Standards are for other people. Why use Meters and C° when Feet and F° exist? Not setting this to false ignores the standard in favor of using feet and Fahrenheit instead. As the author is from 'MERICA, this is the default behaviour. Expects some form of False or 'F', everything else evaluates True (e.g. -F=YourPartOfTheProbem will evaluate to TRUE and proceed to write everything in Imperial)
+* Standards are for other people. Why use Meters and C° when Feet and F° exist? Not setting this to false ignores the standard in favor of using feet and Fahrenheit instead. As the author is from 'MERICA, this is the default behaviour. Expects some form of False or 'F', everything else evaluates True (e.g. -F=YourPartOfTheProbem will evaluate to TRUE and proceed to write everything in Imperial)
 
 -a --author AUTHOR
-	Optional string for Author/Copywrite
+* Optional string for Author/Copywrite
 
 -v, --verbose
-	Flood the console with Print statements
+* Flood the console with Print statements
 
 
 Example execution:
