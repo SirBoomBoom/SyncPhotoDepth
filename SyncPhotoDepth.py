@@ -166,7 +166,7 @@ dataPoints.sort()
 k = 0
 for pic in pictures:
     try:
-        #Dihydrogen promises me that excepting Error is the "python" way to break out of a nested loop like the top. Even if it hurts my soul >.<
+        #Dihydrogen promises me that excepting is the "python" way to break out of a nested loop like the top. Even if it hurts my soul >.<
         while dataPoints[k][0] < pic[1]:
             k = k + 1
         #If the datapoint and photo happened close enough together, proceed to assign metadata
@@ -197,4 +197,4 @@ for pic in pictures:
             #Close the image cause the library people said we get memory leaks otherwise
             image.close    
     except IndexError:        
-        pass
+        break
