@@ -30,7 +30,7 @@ fFile = args.fitFile
 print("FIT File: " + fFile)
 
 #Set timezone for photos cause they're stupid
-if args.timezone is not None:
+if args.timezone:
     picTimezone = args.timezone.lstrip()
     print("TimeZone: " + picTimezone)
 else:
@@ -39,22 +39,24 @@ else:
 
 #Set the picture offset, if present
 picOffset = args.offset
-if picOffset is not None:
+if picOffset:
     print("Picture offset (in seconds): " + str(picOffset))
 else:
     print("Picture offset (in seconds): None")
 
 #Optional human friendly location to set for photos.
 picLoc = args.location
-if picLoc is not None:
+if picLoc:
     print("Picture Location: " + picLoc)
     #Set the "name/location" of the dive. Overloading UniqueID because ReelName isn't displayed by default... <sigh>    
     addData.update({'Exif.Photo.ImageUniqueID': picLoc, 'Exif.Image.ReelName' : picLoc})
 else:
     print("Picture Location: None")
 
-#Converts a decimal coordinate into an ugly Degree Minute Second as fractions abomination. hem wants either ["N", "S"] for latitude or ["E", "W"] for longitude
 def convertCoord(coord, hem):
+    '''Converts a decimal coordinate into an ugly Degree Minute Second as fractions abomination. 
+       @coord - A single decimal coordinate, like '-122.30292438387733' to be converted
+       @hem - Either the array ["N", "S"] for latitude or ["E", "W"] for longitude'''
     #Because of course EXIF doesn't support signed coordinates, we need to strip negative signs and track them by hemisphere >.<
     if coord.startswith('-'):
         coord = coord[1:]
@@ -69,15 +71,16 @@ def convertCoord(coord, hem):
     return [deg, ref]
 
 #Optional decimal coordinates to set for photos. This will be converted to degrees minutes if not none
-if args.coords is not None:
+if args.coords:
     coords = str.split(args.coords)
     lat = convertCoord(coords[0], ["N", "S"])
     long = convertCoord(coords[1], ["E", "W"])
     picCoords = [lat, long]
     print("GPS Coords: " + str(picCoords))
     #Because of course things cannot be obvous or documented correctly >.< Lat and Long must be passed as a single string of fractions seperated by spaces (NO COMMAS)
-    addData.update({"Exif.GPSInfo.GPSLatitude": str(picCoords[0][0][0])+" "+str(picCoords[0][0][1])+" "+str(picCoords[0][0][2]), "Exif.GPSInfo.GPSLatitudeRef": picCoords[0][1],
-                    "Exif.GPSInfo.GPSLongitude": str(picCoords[1][0][0])+" "+str(picCoords[1][0][1])+" "+str(picCoords[1][0][2]), "Exif.GPSInfo.GPSLongitudeRef": picCoords[1][1]})
+    addData.update({"Exif.GPSInfo.GPSLatitude": " ".join(picCoords[0][0]), "Exif.GPSInfo.GPSLatitudeRef": picCoords[0][1],
+                    "Exif.GPSInfo.GPSLongitude": " ".join(picCoords[1][0]), "Exif.GPSInfo.GPSLongitudeRef": picCoords[1][1]})
+    #"Exif.GPSInfo.GPSLongitude": str(picCoords[1][0][0])+" "+str(picCoords[1][0][1])+" "+str(picCoords[1][0][2]), "Exif.GPSInfo.GPSLongitudeRef": picCoords[1][1]})
 else:
     picCoords = args.coords
     print("GPS Coords: None")
@@ -91,22 +94,22 @@ print("FREEDOM: " + str(ignoreStandards))
 
 #Get the Author name/Copyright
 author = args.author
-if author is not None:
+if author:
     print("Author/Copyright: " + author)
     #Author is apparently a Windows only thing, so setting Copyright as well
     addData.update({'Exif.Image.Copyright': author, 'Exif.Image.XPAuthor': author}) 
 else:
     print("Author/Copyright: None")
 
-##Converts Celsius to Fahrenheit if FREEDOM isn't false
 def cToF(temp):
+    '''Converts Celsius to Fahrenheit if FREEDOM isn't false, rounds to the nearest whole number'''
     if ignoreStandards:
         return round((temp * 9 / 5 + 32))
     else:
         return temp
 
-#Converts millimeters to feet or meters depending on FREEDOM
 def mmToFeet(mm):
+    '''Converts millimeters to feet or meters depending on FREEDOM, rounded to the near whole number'''
     if ignoreStandards:
         return round(mm/304.8)
     else:
