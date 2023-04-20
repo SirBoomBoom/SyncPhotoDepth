@@ -12,7 +12,8 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             //"args": ["ScubaDiving_2023-02-20T14_19_15.fit", "-z", "\" -07:00\"", "-l=Mukilteo, Washington", "-c", "\"47.95007464778781 -122.30292438387733\"", "-F=\\'MERICA!", "-a=Don Mitchell"]
-            "args": ["ScubaDiving_2023-02-20T15_57_36.fit", "-z", "\" -07:00\"", "-l=Mukilteo, Washington", "-c", "\"47.95007464778781 -122.30292438387733\"", "-a=Don Mitchell", "-v"]
+            "args": ["ScubaDiving_2023-02-20T14_19_15.fit", "-z", "\" -07:00\"", "-l=Mukilteo, Washington", "-c", "\"47.95007464778781 -122.30292438387733\"", "-a=Don Mitchell", "-v"]
+            //"args": ["ScubaDiving_2023-02-20T15_57_36.fit", "-z", "\" -07:00\"", "-l=Mukilteo, Washington", "-c", "\"47.95007464778781 -122.30292438387733\"", "-a=Don Mitchell", "-v"]
         }
     ]
 }

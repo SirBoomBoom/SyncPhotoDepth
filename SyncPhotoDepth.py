@@ -165,37 +165,36 @@ dataPoints.sort()
 # the depth the photo was taken
 k = 0
 for pic in pictures:
-    while dataPoints[k][0] < pic[1]:
-        k = k + 1
-        if(k == len(dataPoints)):
-            break
-    #Apparently Python can't break out of nested loops, so double check for each photo
-    if(k == len(dataPoints)):
-        break
-    #If the datapoint and photo happened close enough together, proceed to assign metadata
-    if (dataPoints[k][0] - pic[1]) <= 10:
-        nextDepth = int(dataPoints[k][1])
-        prevDepth = int(dataPoints[k-1][1])
-        #Determine the time difference between datapoints (for readability)
-        timeRange = dataPoints[k][0] - dataPoints[k-1][0]
-        #Determine where the photo falls between datapoints to guestimate depth
-        offset = dataPoints[k][0] - pic[1]
-        #Calculate the depth assuming a linear change between the two points, then convert to feet. Convert to a fraction because apparently that is required to work
-        depth = str(mmToFeet(nextDepth - ((nextDepth - prevDepth)/(timeRange) * (offset)))) + "/1"
-        if args.verbose:
-            print("Found depth: " + str(depth))
-        
-        # Create set of metadata we wish to update. This will overwrite its original value, or add it if it doesn't exist
-        addData.update({'Exif.Photo.WaterDepth': depth, #WaterDepth (Technically supposed to be in meters, buuuutt.... 'MERICA!)
-                   #Temperature also supposed to be in Celsius, but that's just silly. Almost as silly as the fact that it must be saved as a fraction, as opposed to a float or something sane.
-                   'Exif.Photo.Temperature': str(dataPoints[k][2]) + "/1", 
-                   #Set the Altitude, because WaterDepth doesn't actually show up >.< Ref of 1 indicates Altitude is below sea level (sadly it is the absolute value so will display as positive number)
-                   'Exif.GPSInfo.GPSAltitudeRef': 1, 'Exif.GPSInfo.GPSAltitude': depth})
-        if args.verbose:
-            print(addData)
+    try:
+        #Dihydrogen promises me that excepting Error is the "python" way to break out of a nested loop like the top. Even if it hurts my soul >.<
+        while dataPoints[k][0] < pic[1]:
+            k = k + 1
+        #If the datapoint and photo happened close enough together, proceed to assign metadata
+        if (dataPoints[k][0] - pic[1]) <= 10:
+            nextDepth = int(dataPoints[k][1])
+            prevDepth = int(dataPoints[k-1][1])
+            #Determine the time difference between datapoints (for readability)
+            timeRange = dataPoints[k][0] - dataPoints[k-1][0]
+            #Determine where the photo falls between datapoints to guestimate depth
+            offset = dataPoints[k][0] - pic[1]
+            #Calculate the depth assuming a linear change between the two points, then convert to feet. Convert to a fraction because apparently that is required to work
+            depth = str(mmToFeet(nextDepth - ((nextDepth - prevDepth)/(timeRange) * (offset)))) + "/1"
+            if args.verbose:
+                print("Found depth: " + str(depth))
+            
+            # Create set of metadata we wish to update. This will overwrite its original value, or add it if it doesn't exist
+            addData.update({'Exif.Photo.WaterDepth': depth, #WaterDepth (Technically supposed to be in meters, buuuutt.... 'MERICA!)
+                    #Temperature also supposed to be in Celsius, but that's just silly. Almost as silly as the fact that it must be saved as a fraction, as opposed to a float or something sane.
+                    'Exif.Photo.Temperature': str(dataPoints[k][2]) + "/1", 
+                    #Set the Altitude, because WaterDepth doesn't actually show up >.< Ref of 1 indicates Altitude is below sea level (sadly it is the absolute value so will display as positive number)
+                    'Exif.GPSInfo.GPSAltitudeRef': 1, 'Exif.GPSInfo.GPSAltitude': depth})
+            if args.verbose:
+                print(addData)
 
-        #Fetch the metadata object we wish to edit
-        image = pyexiv2.Image(pic[0])
-        image.modify_exif(addData)
-        #Close the image cause the library people said we get memory leaks otherwise
-        image.close
+            #Fetch the metadata object we wish to edit
+            image = pyexiv2.Image(pic[0])
+            image.modify_exif(addData)
+            #Close the image cause the library people said we get memory leaks otherwise
+            image.close    
+    except IndexError:        
+        pass
