@@ -6,6 +6,7 @@ import calendar
 import pyexiv2
 import argparse
 import lat_lon_parser
+from collections import namedtuple
 
 parser = argparse.ArgumentParser()
 parser.add_argument("fitFile", type=str, help="The FIT File to use when sycning depth and temperature to photos")
@@ -53,6 +54,12 @@ if picLoc:
 else:
     print("Picture Location: None")
 
+# Creating a Named Coordinate Tuple
+Coord = namedtuple('Coord', ['deg', 'min', 'sec'])
+
+# Creating a Named L*tude Tuple
+Ltude = namedtuple('Ltude', ['coord', 'ref'])
+
 def convertCoord(coord, hem):
     '''Converts a decimal coordinate into an ugly Degree Minute Second as fractions abomination. 
        @coord - A single decimal coordinate, like '-122.30292438387733' to be converted
@@ -67,20 +74,21 @@ def convertCoord(coord, hem):
     #Convert our lovely decimal coordinates into Degrees, Minutes and Seconds
     deg = lat_lon_parser.to_deg_min_sec(lat_lon_parser.parse(coord))
     #Now that we have it as degrees and minutes, we need to convert to fractions because EXIF >.<
-    deg = (str(round(deg[0]))+"/1", str(round(deg[1]))+"/1", str(round(deg[2]*100))+"/100")
-    return [deg, ref]
+    deg = Coord(str(round(deg[0]))+"/1", str(round(deg[1]))+"/1", str(round(deg[2]*100))+"/100")
+    return Ltude(deg, ref)
 
 #Optional decimal coordinates to set for photos. This will be converted to degrees minutes if not none
 if args.coords:
+    print(f"GPS Coords: {args.coords}")
     coords = str.split(args.coords)
     lat = convertCoord(coords[0], ["N", "S"])
     long = convertCoord(coords[1], ["E", "W"])
     picCoords = [lat, long]
-    print("GPS Coords: " + str(picCoords))
+    if(args.verbose):
+        print(f'GPS Coords: {" ".join(picCoords[0].coord)} {picCoords[0].ref}, {" ".join(picCoords[1].coord)} {picCoords[1].ref}')    
     #Because of course things cannot be obvous or documented correctly >.< Lat and Long must be passed as a single string of fractions seperated by spaces (NO COMMAS)
-    addData.update({"Exif.GPSInfo.GPSLatitude": " ".join(picCoords[0][0]), "Exif.GPSInfo.GPSLatitudeRef": picCoords[0][1],
-                    "Exif.GPSInfo.GPSLongitude": " ".join(picCoords[1][0]), "Exif.GPSInfo.GPSLongitudeRef": picCoords[1][1]})
-    #"Exif.GPSInfo.GPSLongitude": str(picCoords[1][0][0])+" "+str(picCoords[1][0][1])+" "+str(picCoords[1][0][2]), "Exif.GPSInfo.GPSLongitudeRef": picCoords[1][1]})
+    addData.update({"Exif.GPSInfo.GPSLatitude": " ".join(picCoords[0].coord), "Exif.GPSInfo.GPSLatitudeRef": picCoords[0].ref,
+                    "Exif.GPSInfo.GPSLongitude": " ".join(picCoords[1].coord), "Exif.GPSInfo.GPSLongitudeRef": picCoords[1].ref})
 else:
     picCoords = args.coords
     print("GPS Coords: None")
@@ -139,6 +147,9 @@ for pic in sorted(os.listdir(), key=os.path.getmtime):
 #Sort the pictures by their metadata created date, just in case the OS was sorting by a different timestamp
 pictures.sort(key = lambda x: x[1])
 
+# Creating a Named DataPoint Tuple
+DataPoint = namedtuple('DataPoint', ['time', 'depth', 'temp'])
+
 #Loop to go through .fit file and pull out the timestamp, depth, and temp of each known point of the dive, then sort
 #them by time (nearest second). Also converts Celsius to Fahrenheit, rounding to nearest integer
 with fitdecode.FitReader(fFile) as fit_file:
@@ -156,7 +167,7 @@ with fitdecode.FitReader(fFile) as fit_file:
                     elif field.name =='temperature':
                         #Grab the raw Celsius temp and convert it to Fahrenheit
                         temp = str(cToF(field.raw_value))
-                dp = (ts, mm, temp)
+                dp = DataPoint(ts, mm, temp)
                 dataPoints.append(dp)
 dataPoints.sort()
 
@@ -167,16 +178,16 @@ k = 0
 for pic in pictures:
     try:
         #Dihydrogen promises me that excepting is the "python" way to break out of a nested loop like the top. Even if it hurts my soul >.<
-        while dataPoints[k][0] < pic[1]:
+        while dataPoints[k].time < pic[1]:
             k = k + 1
         #If the datapoint and photo happened close enough together, proceed to assign metadata
-        if (dataPoints[k][0] - pic[1]) <= 10:
-            nextDepth = int(dataPoints[k][1])
-            prevDepth = int(dataPoints[k-1][1])
+        if (dataPoints[k].time - pic[1]) <= 10:
+            nextDepth = int(dataPoints[k].depth)
+            prevDepth = int(dataPoints[k-1].depth)
             #Determine the time difference between datapoints (for readability)
-            timeRange = dataPoints[k][0] - dataPoints[k-1][0]
+            timeRange = dataPoints[k].time - dataPoints[k-1].time
             #Determine where the photo falls between datapoints to guestimate depth
-            offset = dataPoints[k][0] - pic[1]
+            offset = dataPoints[k].time - pic[1]
             #Calculate the depth assuming a linear change between the two points, then convert to feet. Convert to a fraction because apparently that is required to work
             depth = str(mmToFeet(nextDepth - ((nextDepth - prevDepth)/(timeRange) * (offset)))) + "/1"
             if args.verbose:
@@ -185,7 +196,7 @@ for pic in pictures:
             # Create set of metadata we wish to update. This will overwrite its original value, or add it if it doesn't exist
             addData.update({'Exif.Photo.WaterDepth': depth, #WaterDepth (Technically supposed to be in meters, buuuutt.... 'MERICA!)
                     #Temperature also supposed to be in Celsius, but that's just silly. Almost as silly as the fact that it must be saved as a fraction, as opposed to a float or something sane.
-                    'Exif.Photo.Temperature': str(dataPoints[k][2]) + "/1", 
+                    'Exif.Photo.Temperature': str(dataPoints[k].temp) + "/1", 
                     #Set the Altitude, because WaterDepth doesn't actually show up >.< Ref of 1 indicates Altitude is below sea level (sadly it is the absolute value so will display as positive number)
                     'Exif.GPSInfo.GPSAltitudeRef': 1, 'Exif.GPSInfo.GPSAltitude': depth})
             if args.verbose:
