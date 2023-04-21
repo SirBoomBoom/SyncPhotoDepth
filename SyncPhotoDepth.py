@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import fitdecode
 import sys
 import datetime
@@ -9,7 +10,8 @@ import lat_lon_parser
 from collections import namedtuple
 
 parser = argparse.ArgumentParser()
-parser.add_argument("fitFile", type=str, help="The FIT File to use when sycning depth and temperature to photos")
+parser.add_argument("-f", "--fitFile", type=str, help="The FIT File to use when sycning depth and temperature to photos. If supplied, program will ONLY update photos that fall within the time period" + 
+                    "of the provided .fit file. If left blank, then ALL photos found in the directory will have their metadata updated.")
 parser.add_argument("-z", "--timezone", type=str, help="The timezone the photos were taken in, using the format \" -08:00\" to represent something like PST. " + 
                     "NOTE: If timezone offset starts with a leading '-' it must be quoted and have a leading space, as otherwise Python insists on treating it as an optional argument")
 parser.add_argument("-o", "--offset", type=int, default = 0, help="Optional picture offset, in seconds, from the FIT file. This is used to offset any clock drift between camera and dive computer" + 
@@ -20,22 +22,36 @@ parser.add_argument("-F", "--FREEDOM", type=str, default="TRUE", help="Standards
                     "in favor of using feet and Fahrenheit instead. As the author is from `MERICA, this is the default behaviour. Expects some form of False or 'F', everything else evaluates True " + 
                     "(e.g. -F=YourPartOfTheProbem will evaluate to TRUE and proceed to write everything in Imperial)")
 parser.add_argument("-a", "--author", type=str, help="Optional string for Author/Copywrite")
+parser.add_argument("-p", "--path", type=str, help="Path to the folder containing the photos you wish to update. If left blank assumes working directory")
 parser.add_argument("-v", "--verbose", action="store_true", help="Flood the console with Print statements")
 args = parser.parse_args()
 
 #Create the dictionary for data we'll be adding to photos in advance, because half of it will be identical for all photos so there's no sense updating it in our photo loop
 addData = {}
 
+
+picPath = os.getcwd()
+#Get the location of pictures to edit
+if args.path:
+    picPath = args.path
+    print(f"Photo location: {picPath}")
+else:
+    print("No PATH defined, using current working directory.")
+
+fFile = None
 #Get the FIT File name
-fFile = args.fitFile
-print("FIT File: " + fFile)
+if args.fitFile:
+    fFile = args.fitFile
+    print("FIT File: " + fFile)
+else:
+    print("No .fit File supplied, will scan photo directory for .fit files to use.")
 
 #Set timezone for photos cause they're stupid
 if args.timezone:
     picTimezone = args.timezone.lstrip()
     print("TimeZone: " + picTimezone)
 else:
-    picTimezone = None
+    picTimezone = "+00:00"
     print("TimeZone: None")
 
 #Set the picture offset, if present
@@ -122,14 +138,77 @@ def mmToFeet(mm):
         return round(mm/304.8)
     else:
         return round(mm/1000,1)
+    
+def updatePhoto(photo, addData):
+    ''' Updates the provided photo with the desired metadata
+        @photo - Path of the photo to update
+        @addData - Dictionary of metadata desired to be added/updated'''
+    
+    if args.verbose:
+        print(f"Updating photo: {photo}")
+    #Fetch the metadata object we wish to edit
+    image = pyexiv2.Image(photo)
+    image.modify_exif(addData)
+    #Close the image cause the library people said we get memory leaks otherwise
+    image.close    
 
+    #Pyexiv re-encodes anything starting with XP and modifies the original dictionary with the new value, causing the loop to spiral out of control. To combat that, reset XPAuthor now if it was used
+    if author:
+        addData.update({'Exif.Image.XPAuthor': author}) 
+
+        
+# Creating a Named DataPoint Tuple
+DataPoint = namedtuple('DataPoint', ['time', 'depth', 'temp'])
 #Sorted list of dive data points
 dataPoints = []
 #Sorted list of picture files
 pictures = []
 
+def parseFitFile(fitFile):
+    ''' Loop to go through .fit file and pull out the timestamp, depth, and temp of each known point of the dive, then sort
+        them by time (nearest second). Also converts Celsius to Fahrenheit, rounding to nearest integer
+        @fitFile - .fit File to parse and add to the dataPoints collection'''
+    with fitdecode.FitReader(fitFile) as fit_file:
+        for frame in fit_file:
+            if isinstance(frame, fitdecode.records.FitDataMessage):
+                if frame.name == 'record':
+                    # This frame contains point in time dive data.
+                    for field in frame.fields:                    
+                        if field.name == 'timestamp':
+                            #Get the Date and convert it to an epoch time. DON'T use raw_value cause they are doing something funky and it isn't standard >.<    
+                            ts = calendar.timegm(field.value.timetuple())
+                        elif field.name == 'depth':
+                            #We'll leave it as mm for now and convert after we average out the depth between the two data points
+                            mm = str(field.raw_value)
+                        elif field.name =='temperature':
+                            #Grab the raw Celsius temp and convert it to Fahrenheit
+                            temp = str(cToF(field.raw_value))
+                    dp = DataPoint(ts, mm, temp)
+                    dataPoints.append(dp)
+    dataPoints.sort()
+    if args.verbose:
+        print(f"First Datapoint: {dataPoints[0].time}")
+        print(f"Last Datapoint: {dataPoints[len(dataPoints) -1].time}")
+
+#If a .fit file was supplied, load it now
+if fFile:
+    parseFitFile(fFile)
+
+c = 0
 #Iterates over everything in the current directory and creates a time sorted list of only pictures
-for pic in sorted(os.listdir(), key=os.path.getmtime):
+for pic in sorted(Path(picPath).iterdir(), key=os.path.getmtime):
+    c = c + 1
+    if c % 100 == 0:
+        print(f"Scanned {c} files so far.")
+    #Don't actually want a path cause most libraries seem to expect a String
+    pic = str(pic)
+    if args.verbose:
+        print(f"Attempting File: {pic}")
+    
+    if not fFile and pic.upper().endswith(".FIT"):
+        print(f"Found .fit file {pic}, attempting to parse.")
+        parseFitFile(pic)
+        continue
     try:
         #Fetch the image metadata so we can grab the date the camera thinks the photo was taken, to ensure we can process these in order taken
         exiv_image = pyexiv2.Image(pic)
@@ -138,50 +217,45 @@ for pic in sorted(os.listdir(), key=os.path.getmtime):
         #Get the timestamp the picture was taken
         #Add a timezone because for some dumb reason that isn't stored in EXIF data >.<
         t=datetime.datetime.strptime(data['Exif.Image.DateTime'] + picTimezone, '%Y:%m:%d %H:%M:%S%z')
+        if args.verbose:
+            print(f"Photo: {pic} {t} {t.timestamp()}")
         #Close the image because the library tells us to
         exiv_image.close()
         #Convert to Epoch so we can stop dealing with the pain that is DateTime objects
         pictures.append((pic, (t.timestamp() + picOffset)))
-    except:
+    except RuntimeError:
+        continue
+    except KeyError:
+        print(f"Couldn't parse the Exif.Image.DateTime for {pic}, skipping.")
         continue
 #Sort the pictures by their metadata created date, just in case the OS was sorting by a different timestamp
 pictures.sort(key = lambda x: x[1])
+print(f"Found {len(pictures)} pictures to update.")
 
-# Creating a Named DataPoint Tuple
-DataPoint = namedtuple('DataPoint', ['time', 'depth', 'temp'])
-
-#Loop to go through .fit file and pull out the timestamp, depth, and temp of each known point of the dive, then sort
-#them by time (nearest second). Also converts Celsius to Fahrenheit, rounding to nearest integer
-with fitdecode.FitReader(fFile) as fit_file:
-    for frame in fit_file:
-        if isinstance(frame, fitdecode.records.FitDataMessage):
-            if frame.name == 'record':
-                # This frame contains point in time dive data.
-                for field in frame.fields:                    
-                    if field.name == 'timestamp':
-                        #Get the Date and convert it to an epoch time. DON'T use raw_value cause they are doing something funky and it isn't standard >.<    
-                        ts = calendar.timegm(field.value.timetuple())
-                    elif field.name == 'depth':
-                        #We'll leave it as mm for now and convert after we average out the depth between the two data points
-                        mm = str(field.raw_value)
-                    elif field.name =='temperature':
-                        #Grab the raw Celsius temp and convert it to Fahrenheit
-                        temp = str(cToF(field.raw_value))
-                dp = DataPoint(ts, mm, temp)
-                dataPoints.append(dp)
-dataPoints.sort()
+#Quick check if we had any .fit files, if not update all the photos with the bulk data and abort the script early
+if not dataPoints:
+    for pic in pictures:
+        #Update the photo 
+        updatePhoto(pic[0], addData)
+    sys.exit()
 
 # Nested loop that iterates through the pictures and datapoints in "Created" sorted order, iterating datapoints until it finds
 # a datapoint that is newer than the current photo, then normalizes the depth between the newer and older datapoint to guestimate
 # the depth the photo was taken
-k = 0
+k, c = 0, 0
+fitKeys = ['Exif.Photo.WaterDepth','Exif.Photo.Temperature','Exif.GPSInfo.GPSAltitudeRef', 'Exif.GPSInfo.GPSAltitude']
 for pic in pictures:
+    c = c + 1
+    if c % 100 == 0:
+        print(f"Updated {c} photos so far.")
+    #If we have .fit data, then determine what belongs to this photo
     try:
-        #Dihydrogen promises me that excepting is the "python" way to break out of a nested loop like the top. Even if it hurts my soul >.<
-        while dataPoints[k].time < pic[1]:
-            k = k + 1
+        #Because both fit data and pictures are in chronological order, as long as the datapoint is older than the photo increment it. This means pictures older than the oldest fit data will skip
+        #this loop, which is fine that just means we don't have data for them. Likewise photos taken after the .fit data will quickly exceed the diff limit and bypass the fit checks as well.
+        while k < (len(dataPoints)-1) and dataPoints[k].time < pic[1]:
+            k = k + 1        
         #If the datapoint and photo happened close enough together, proceed to assign metadata
-        if (dataPoints[k].time - pic[1]) <= 10:
+        if abs(dataPoints[k].time - pic[1]) <= 10:
             nextDepth = int(dataPoints[k].depth)
             prevDepth = int(dataPoints[k-1].depth)
             #Determine the time difference between datapoints (for readability)
@@ -202,10 +276,13 @@ for pic in pictures:
             if args.verbose:
                 print(addData)
 
-            #Fetch the metadata object we wish to edit
-            image = pyexiv2.Image(pic[0])
-            image.modify_exif(addData)
-            #Close the image cause the library people said we get memory leaks otherwise
-            image.close    
+        #If we didn't find a photo in our .fit range we need to clear the previous fit data before it claims it
+        elif addData.get('Exif.Photo.WaterDepth'):
+            for key in fitKeys:
+                del addData[key]
     except IndexError:        
         break
+    
+    #Update the photo 
+    updatePhoto(pic[0], addData)
+

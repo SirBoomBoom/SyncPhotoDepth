@@ -11,9 +11,11 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            //"args": ["ScubaDiving_2023-02-20T14_19_15.fit", "-z", "\" -07:00\"", "-l=Mukilteo, Washington", "-c", "\"47.95007464778781 -122.30292438387733\"", "-F=\\'MERICA!", "-a=Don Mitchell"]
-            "args": ["ScubaDiving_2023-02-20T14_19_15.fit", "-z", "\" -07:00\"", "-l=Mukilteo, Washington", "-c", "\"47.95007464778781 -122.30292438387733\"", "-a=Don Mitchell", "-v"]
-            //"args": ["ScubaDiving_2023-02-20T15_57_36.fit", "-z", "\" -07:00\"", "-l=Mukilteo, Washington", "-c", "\"47.95007464778781 -122.30292438387733\"", "-a=Don Mitchell", "-v"]
+            //"args": ["-f=ScubaDiving_2023-02-20T14_19_15.fit", "-z", "\" -07:00\"", "-l=Mukilteo, Washington", "-c", "\"47.95007464778781 -122.30292438387733\"", "-F=\\'MERICA!", "-a=Don Mitchell"]
+            //"args": ["-p=C:\\Github\\SyncPhotoDepth\\test", "-z", "\" -07:00\"", "-l=Mukilteo, Washington", "-c", "\"47.95007464778781 -122.30292438387733\"", "-a=DM", "-v"]
+            //"args": ["-f=ScubaDiving_2023-02-20T15_57_36.fit", "-z", "\" -07:00\"", "-l=Mukilteo, Washington", "-c", "\"47.95007464778781 -122.30292438387733\"", "-a=Don Mitchell", "-v"]
+            "args": ["-p=C:\\Users\\Don.INVADER\\Pictures\\2023\\Indonesia\\Dives\\Dive Site 6 - Fam\\Dive 22 - Fam - Melissa's Garden", "-z", "\" -07:00\"", "-l=Melissa's Garden, Indonesia", "-c", "\"-0.58999 130.31525\"", "-a=Don Mitchell"]
+            //"args": ["-a=Don Mitchell"]
         }
     ]
 }
