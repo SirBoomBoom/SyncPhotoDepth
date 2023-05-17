@@ -9,6 +9,7 @@ import argparse
 import lat_lon_parser
 from collections import namedtuple
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("-f", "--fitFile", type=str, help="The FIT File to use when sycning depth and temperature to photos. If supplied, program will ONLY update photos that fall within the time period" + 
                     "of the provided .fit file. If left blank, then ALL photos found in the directory will have their metadata updated.")
@@ -22,9 +23,12 @@ parser.add_argument("-F", "--FREEDOM", type=str, default="TRUE", help="Standards
                     "in favor of using feet and Fahrenheit instead. As the author is from `MERICA, this is the default behaviour. Expects some form of False or 'F', everything else evaluates True " + 
                     "(e.g. -F=YourPartOfTheProbem will evaluate to TRUE and proceed to write everything in Imperial)")
 parser.add_argument("-a", "--author", type=str, help="Optional string for Author/Copywrite")
+parser.add_argument("-d", "--description", type=str, help="Optional string for Description")
 parser.add_argument("-p", "--path", type=str, help="Path to the folder containing the photos you wish to update. If left blank assumes working directory")
 parser.add_argument("-v", "--verbose", action="store_true", help="Flood the console with Print statements")
 args = parser.parse_args()
+
+
 
 #Create the dictionary for data we'll be adding to photos in advance, because half of it will be identical for all photos so there's no sense updating it in our photo loop
 addData = {}
@@ -115,6 +119,15 @@ if 'FALSE'.startswith(args.FREEDOM.upper()) or 'F'.startswith(args.FREEDOM.upper
 else:
     ignoreStandards = True
 print("FREEDOM: " + str(ignoreStandards))
+
+#Get the Description
+description = args.description
+if description:
+    print(f"Description: {description}")
+    #Author is apparently a Windows only thing, so setting Copyright as well
+    addData.update({'Exif.Image.ImageDescription': description}) 
+else:
+    print("Description: None")
 
 #Get the Author name/Copyright
 author = args.author
@@ -214,9 +227,12 @@ for pic in sorted(Path(picPath).iterdir(), key=os.path.getmtime):
         exiv_image = pyexiv2.Image(pic)
         data = exiv_image.read_exif()
 
-        #Get the timestamp the picture was taken
+        #Get the timestamp the picture was taken. Try it twice cause apparently there are lots of these fields sprinkled all over the EXIF dataset people can use >.<
         #Add a timezone because for some dumb reason that isn't stored in EXIF data >.<
-        t=datetime.datetime.strptime(data['Exif.Image.DateTime'] + picTimezone, '%Y:%m:%d %H:%M:%S%z')
+        try:
+            t=datetime.datetime.strptime(data['Exif.Image.DateTime'] + picTimezone, '%Y:%m:%d %H:%M:%S%z')
+        except KeyError:
+            t=datetime.datetime.strptime(data['Exif.Photo.DateTimeOriginal'] + picTimezone, '%Y:%m:%d %H:%M:%S%z')            
         if args.verbose:
             print(f"Photo: {pic} {t} {t.timestamp()}")
         #Close the image because the library tells us to
@@ -227,6 +243,7 @@ for pic in sorted(Path(picPath).iterdir(), key=os.path.getmtime):
         continue
     except KeyError:
         print(f"Couldn't parse the Exif.Image.DateTime for {pic}, skipping.")
+        print(data)
         continue
 #Sort the pictures by their metadata created date, just in case the OS was sorting by a different timestamp
 pictures.sort(key = lambda x: x[1])
