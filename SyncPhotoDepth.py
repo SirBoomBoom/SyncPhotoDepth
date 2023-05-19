@@ -24,6 +24,8 @@ parser.add_argument("-F", "--FREEDOM", type=str, default="TRUE", help="Standards
                     "(e.g. -F=YourPartOfTheProbem will evaluate to TRUE and proceed to write everything in Imperial)")
 parser.add_argument("-a", "--author", type=str, help="Optional string for Author/Copywrite")
 parser.add_argument("-d", "--description", type=str, help="Optional string for Description")
+parser.add_argument("-C", "--comment", type=str, help="Optional string for XPComment")
+parser.add_argument("-J", "--subject", type=str, help="Optional string for XPSubject")
 parser.add_argument("-p", "--path", type=str, help="Path to the folder containing the photos you wish to update. If left blank assumes working directory")
 parser.add_argument("-v", "--verbose", action="store_true", help="Flood the console with Print statements")
 args = parser.parse_args()
@@ -137,6 +139,24 @@ if author:
     addData.update({'Exif.Image.Copyright': author, 'Exif.Image.XPAuthor': author}) 
 else:
     print("Author/Copyright: None")
+
+#Get the Subject
+subject = args.subject
+if subject:
+    print("Subject: " + subject)
+    #Subject is apparently a Windows only thing, hopefully Mac users can just ignore it?
+    addData.update({'Exif.Image.XPSubject': subject}) 
+else:
+    print("Subject: None")
+
+#Get the Comment
+comment = args.comment
+if comment:
+    print("Comment: " + comment)
+    #Comment is apparently a Windows only thing, hopefully Mac users can just ignore it?
+    addData.update({'Exif.Image.XPComment': comment}) 
+else:
+    print("Comment: None")
 
 def cToF(temp):
     '''Converts Celsius to Fahrenheit if FREEDOM isn't false, rounds to the nearest whole number'''
